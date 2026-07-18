@@ -1,10 +1,17 @@
 import express, { Express, Request, Response } from "express";
+import swaggerUI from "swagger-ui-express";
+import fs from "fs";
+import YAML from "yaml";
+
+const swaggerYaml = fs.readFileSync("./swagger.yaml", "utf-8");
+const swaggerDocument = YAML.parse(swaggerYaml);
 
 const app: Express = express();
 const port: number = 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/docs", swaggerUI.serve, swaggerUI.setup(swaggerDocument));
 
 interface Task {
   id: number;
