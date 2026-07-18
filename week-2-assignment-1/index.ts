@@ -3,6 +3,9 @@ import express, { Express, Request, Response } from "express";
 const app: Express = express();
 const port: number = 3000;
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 interface Task {
   id: number;
   title: string;
@@ -37,6 +40,25 @@ app.get("/tasks/:id", (req: Request, res: Response) => {
   }
 
   res.status(200).json(task);
+});
+
+app.post("/tasks", (req: Request, res: Response) => {
+  console.log("Request body:", req.body);
+  const { title } = req.body;
+
+  if (!title || title.trim() === "") {
+    res.status(400).json({ error: "Title is required" });
+    return;
+  }
+
+  const newTask: Task = {
+    id: tasks.length + 1,
+    title,
+    done: false
+  };
+
+  tasks.push(newTask);
+  res.status(201).json(newTask);
 });
 
 app.listen(port, () => {
