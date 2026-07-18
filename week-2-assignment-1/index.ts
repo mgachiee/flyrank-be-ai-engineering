@@ -43,7 +43,6 @@ app.get("/tasks/:id", (req: Request, res: Response) => {
 });
 
 app.post("/tasks", (req: Request, res: Response) => {
-  console.log("Request body:", req.body);
   const { title } = req.body;
 
   if (!title || title.trim() === "") {
@@ -59,6 +58,41 @@ app.post("/tasks", (req: Request, res: Response) => {
 
   tasks.push(newTask);
   res.status(201).json(newTask);
+});
+
+app.put("/tasks/:id", (req: Request, res: Response) => {
+  const taskId: number = parseInt(req.params.id as string, 10);
+  const task: Task | undefined = tasks.find(t => t.id === taskId);
+
+  if (!task) {
+    res.status(404).json({ error: `Task ${taskId} not found` });
+    return;
+  }
+
+  const { title, done } = req.body;
+
+  if (!title && done === undefined) {
+    res.status(400).json({ error: "At least one of title or done is required" });
+    return;
+  }
+
+  if (title !== undefined) task.title = title;
+  if (done !== undefined) task.done = done;
+
+  res.status(200).json(task);
+});
+
+app.delete("/tasks/:id", (req: Request, res: Response) => {
+  const taskId: number = parseInt(req.params.id as string, 10);
+  const taskIndex: number = tasks.findIndex(t => t.id === taskId);
+
+  if (taskIndex === -1) {
+    res.status(404).json({ error: `Task ${taskId} not found` });
+    return;
+  }
+
+  tasks.splice(taskIndex, 1);
+  res.status(204).send();
 });
 
 app.listen(port, () => {
