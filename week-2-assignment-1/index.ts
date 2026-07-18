@@ -33,8 +33,56 @@ app.get("/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.get("/tasks", (_req: Request, res: Response) => {
-  res.status(200).json(tasks);
+app.get("/stats", (_req: Request, res: Response) => {
+  const totalTask: number = tasks.length;
+  const totalCompletedTasks: number = tasks.filter(t => t.done === true).length;
+  const totalIncompleteTasks: number = tasks.filter(t => t.done === false).length;
+
+  res.status(200).json({
+    total: totalTask,
+    done: totalCompletedTasks,
+    open: totalIncompleteTasks
+  });
+});
+
+app.post("/reset", (_req: Request, res: Response) => {
+  tasks.splice(2, tasks.length - 3);
+  res.status(200).json({ message: "Tasks reset to initial state" });
+});
+
+app.get("/tasks", (req: Request, res: Response) => {
+  const queryDone = req.query.done as string | undefined;
+  const querySearch = req.query.search as "true" | "false";
+
+  if (!queryDone && !querySearch) {
+    res.status(200).json(tasks);
+    return;
+  }
+
+  // Filter logic for query params
+  const filteredTasks = tasks.filter(task => {
+    let searchMatch: boolean;
+
+    if (querySearch === undefined || querySearch.length === 0) {
+      searchMatch = true; // No filter on title
+    } else {
+      searchMatch = task.title?.toLowerCase().includes(querySearch.toLowerCase()) ?? false;
+    }
+
+    const doneValue = task.done ? String(task.done) : "false";
+
+    let doneMatch: boolean;
+
+    if (queryDone === undefined || queryDone.length === 0) {
+      doneMatch = true; // No filter on completion status
+    } else {
+      doneMatch = doneValue.toLowerCase() === queryDone.toLowerCase();
+    }
+
+    return searchMatch && doneMatch;
+  })
+
+  res.status(200).json(filteredTasks);
 });
 
 app.get("/tasks/:id", (req: Request, res: Response) => {

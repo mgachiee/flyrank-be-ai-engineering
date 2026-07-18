@@ -50,3 +50,7 @@ Keep-Alive: timeout=5
 ## Swagger Documentation Screenshot
 
 <img width="2560" height="1600" alt="Screenshot 2026-07-18 132449" src="https://github.com/user-attachments/assets/47f6ac6d-e553-4243-b557-682a2a44814b" />
+
+## Mortality Experiment
+
+After creating new tasks and restarting the server, all newly created tasks are lost; only default items remain. This is because the application uses in-memory storage, which lacks persistence unlike a database.
