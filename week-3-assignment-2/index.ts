@@ -151,23 +151,27 @@ app.get("/tasks/:id", (req: Request, res: Response) => {
   res.status(200).json(task);
 });
 
-// app.post("/tasks", (req: Request, res: Response) => {
-//   const { title } = req.body;
+app.post("/tasks", (req: Request, res: Response) => {
+  const { title } = req.body;
 
-//   if (!title || title.trim() === "") {
-//     res.status(400).json({ error: "Title is required" });
-//     return;
-//   }
+  if (!title || title.trim() === "") {
+    res.status(400).json({ error: "Title is required" });
+    return;
+  }
 
-//   const newTask: TaskAttributes = {
-//     id: tasks.length + 1,
-//     title,
-//     done: false
-//   };
+  // Fetch all tasks from the database
+  const tasks = db.prepare("SELECT * FROM tasks").all() as TaskAttributes[];
 
-//   tasks.push(newTask);
-//   res.status(201).json(newTask);
-// });
+  const newTask: TaskAttributes = {
+    id: tasks.length + 1,
+    title,
+    done: 0
+  };
+
+  // Insert the new task into the database
+  db.prepare("INSERT INTO tasks (title, done) VALUES (?, ?)").run(newTask.title, newTask.done);
+  res.status(201).json(newTask);
+});
 
 // app.put("/tasks/:id", (req: Request, res: Response) => {
 //   const taskId: number = parseInt(req.params.id as string, 10);
