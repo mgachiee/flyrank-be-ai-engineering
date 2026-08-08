@@ -136,17 +136,20 @@ app.get("/tasks", (req: Request, res: Response) => {
   res.status(200).json(filteredTasks);
 });
 
-// app.get("/tasks/:id", (req: Request, res: Response) => {
-//   const taskId: number = parseInt(req.params.id as string, 10);
-//   const task: TaskAttributes | undefined = tasks.find(t => t.id === taskId);
+app.get("/tasks/:id", (req: Request, res: Response) => {
+  const taskId: number = parseInt(req.params.id as string, 10);
 
-//   if (!task) {
-//     res.status(404).json({ error: `Task ${taskId} not found` });
-//     return;
-//   }
+  // Fetch the task from the database
+  const task = db.prepare("SELECT * FROM tasks WHERE id = ?")
+    .get(taskId) as TaskAttributes | undefined;
 
-//   res.status(200).json(task);
-// });
+  if (!task) {
+    res.status(404).json({ error: `Task ${taskId} not found` });
+    return;
+  }
+
+  res.status(200).json(task);
+});
 
 // app.post("/tasks", (req: Request, res: Response) => {
 //   const { title } = req.body;
