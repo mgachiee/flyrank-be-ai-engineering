@@ -82,17 +82,18 @@ app.get("/health", (_req: Request, res: Response) => {
  * The following commits will implement the remaining endpoints to interact with the database based on the assignment instructions.
  */
 
-// app.get("/stats", (_req: Request, res: Response) => {
-//   const totalTask: number = tasks.length;
-//   const totalCompletedTasks: number = tasks.filter(t => t.done === true).length;
-//   const totalIncompleteTasks: number = tasks.filter(t => t.done === false).length;
+app.get("/stats", (_req: Request, res: Response) => {
+  const totalTask = db.prepare("SELECT COUNT(*) as count FROM tasks").get() as { count: number };
+  const tasks = db.prepare("SELECT * FROM tasks").all() as TaskAttributes[];
+  const totalCompletedTasks: number = tasks.filter(t => t.done === 1).length;
+  const totalIncompleteTasks: number = tasks.filter(t => t.done === 0).length;
 
-//   res.status(200).json({
-//     total: totalTask,
-//     done: totalCompletedTasks,
-//     open: totalIncompleteTasks
-//   });
-// });
+  res.status(200).json({
+    total: totalTask.count,
+    done: totalCompletedTasks,
+    open: totalIncompleteTasks
+  });
+});
 
 // app.post("/reset", (_req: Request, res: Response) => {
 //   tasks.splice(2, tasks.length - 3);
@@ -101,39 +102,34 @@ app.get("/health", (_req: Request, res: Response) => {
 
 app.get("/tasks", (req: Request, res: Response) => {
   const queryDone = req.query.done as string | undefined;
-  const querySearch = req.query.search as "true" | "false";
+  const querySearch = req.query.search as string | undefined;
 
-  // Fetch all tasks from the database
-  const tasks = db.prepare("SELECT * FROM tasks").all() as TaskAttributes[];
+  let sql = "SELECT * FROM tasks";
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
 
-  if (!queryDone && !querySearch) {
-    res.status(200).json(tasks);
-    return;
+  // Filter by title search term (case-insensitive using SQL LOWER)
+  if (querySearch !== undefined && querySearch.trim().length > 0) {
+    conditions.push("LOWER(title) LIKE LOWER(?)");
+    params.push(`%${querySearch.trim()}%`);
   }
-  // Filter logic for query params
-  const filteredTasks = tasks.filter(task => {
-    let searchMatch: boolean;
 
-    if (querySearch === undefined || querySearch.length === 0) {
-      searchMatch = true; // No filter on title
-    } else {
-      searchMatch = task.title?.toLowerCase().includes(querySearch.toLowerCase()) ?? false;
+  // Filter by completion status (convert true/false/1/0 to numerical 1/0 for SQLite)
+  if (queryDone !== undefined && queryDone.trim().length > 0) {
+    const doneStr = queryDone.trim().toLowerCase();
+    if (doneStr === "true" || doneStr === "1") {
+      conditions.push("done = 1");
+    } else if (doneStr === "false" || doneStr === "0") {
+      conditions.push("done = 0");
     }
+  }
 
-    const doneValue = task.done ? String(task.done) : "false";
+  if (conditions.length > 0) {
+    sql += " WHERE " + conditions.join(" AND ");
+  }
 
-    let doneMatch: boolean;
-
-    if (queryDone === undefined || queryDone.length === 0) {
-      doneMatch = true; // No filter on completion status
-    } else {
-      doneMatch = doneValue.toLowerCase() === queryDone.toLowerCase();
-    }
-
-    return searchMatch && doneMatch;
-  })
-
-  res.status(200).json(filteredTasks);
+  const tasks = db.prepare(sql + " ORDER BY title").all(...params) as TaskAttributes[];
+  res.status(200).json(tasks);
 });
 
 app.get("/tasks/:id", (req: Request, res: Response) => {
