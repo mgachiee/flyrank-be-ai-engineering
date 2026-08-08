@@ -173,40 +173,48 @@ app.post("/tasks", (req: Request, res: Response) => {
   res.status(201).json(newTask);
 });
 
-// app.put("/tasks/:id", (req: Request, res: Response) => {
-//   const taskId: number = parseInt(req.params.id as string, 10);
-//   const task: TaskAttributes | undefined = tasks.find(t => t.id === taskId);
+app.put("/tasks/:id", (req: Request, res: Response) => {
+  const taskId: number = parseInt(req.params.id as string, 10);
 
-//   if (!task) {
-//     res.status(404).json({ error: `Task ${taskId} not found` });
-//     return;
-//   }
+  // Fetch the task from the database
+  const task = db.prepare("SELECT * FROM tasks WHERE id = ?")
+    .get(taskId) as TaskAttributes | undefined;
 
-//   const { title, done } = req.body;
+  if (!task) {
+    res.status(404).json({ error: `Task ${taskId} not found` });
+    return;
+  }
 
-//   if (!title && done === undefined) {
-//     res.status(400).json({ error: "At least one of title or done is required" });
-//     return;
-//   }
+  const { title, done } = req.body;
 
-//   if (title !== undefined) task.title = title;
-//   if (done !== undefined) task.done = done;
+  if (!title && done === undefined) {
+    res.status(400).json({ error: "At least one of title or done is required" });
+    return;
+  }
 
-//   res.status(200).json(task);
-// });
+  if (title !== undefined) task.title = title;
+  if (done !== undefined) task.done = done;
 
-// app.delete("/tasks/:id", (req: Request, res: Response) => {
-//   const taskId: number = parseInt(req.params.id as string, 10);
-//   const taskIndex: number = tasks.findIndex(t => t.id === taskId);
+  db.prepare("UPDATE tasks SET title = ?, done = ? WHERE id = ?")
+    .run(task.title, task.done, task.id);
 
-//   if (taskIndex === -1) {
-//     res.status(404).json({ error: `Task ${taskId} not found` });
-//     return;
-//   }
+  res.status(200).json(task);
+});
 
-//   tasks.splice(taskIndex, 1);
-//   res.status(204).send();
-// });
+app.delete("/tasks/:id", (req: Request, res: Response) => {
+  const taskId: number = parseInt(req.params.id as string, 10);
+
+  // Fetch all tasks from the database
+  const tasks = db.prepare("SELECT * FROM tasks").all() as TaskAttributes[];
+
+  if (!tasks.some(task => task.id === taskId)) {
+    res.status(404).json({ error: `Task ${taskId} not found` });
+    return;
+  }
+
+  db.prepare("DELETE FROM tasks WHERE id = ?").run(taskId);
+  res.status(204).send();
+});
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
