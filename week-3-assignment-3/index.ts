@@ -1,9 +1,10 @@
 import "dotenv/config";
 import express, { Express, Request, Response } from "express";
+import { connectRedis } from "./configs/redis";
 import swaggerUI from "swagger-ui-express";
 import fs from "fs";
 import YAML from "yaml";
-import { initializeDatabase } from "./repository/task.repository";
+import { pool, initializeDatabase } from "./repository/task.repository";
 import taskRoutes from "./routes/task.route";
 
 const swaggerYaml = fs.readFileSync("./swagger.yaml", "utf-8");
@@ -20,8 +21,10 @@ app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({ name: "Task API", version: "1.0", endpoints: ["/tasks"] });
 });
 
-app.get("/health", (_req: Request, res: Response) => {
-  res.status(200).json({ status: "ok" });
+app.get("/health", async (_req: Request, res: Response) => {
+  const databaseStatus = await pool.query("SELECT 1");
+  if (databaseStatus.rowCount === 1) res.status(200).json({ status: "ok", database: "connected" });
+  res.status(500).json({ status: "error", database: "not connected" });
 });
 
 app.use("/", taskRoutes);
@@ -31,13 +34,17 @@ app.use("/", taskRoutes);
 //   res.status(200).json({ message: "Tasks reset to initial state" });
 // });
 
-app.listen(port, () => {
-  // Initialize the database and seed it with initial tasks
-  initializeDatabase().then(() => {
-    console.log("Database initialized and seeded with initial tasks.");
-  }).catch((error) => {
-    console.error("Error initializing database:", error);
-  });
+const startServer = async () => {
+  try {
+    await connectRedis();
+    app.listen(port, () => {
+      console.log(`Server is running at http://localhost:${port}`);
+      console.log(`Swagger docs available at http://localhost:${port}/docs`);
+    });
+  } catch (error) {
+    console.error("Failed to start the server:", error);
+    process.exit(1); // Exit the process with an error code
+  }
+};
 
-  console.log(`Server is running at http://localhost:${port}`);
-});
+startServer();

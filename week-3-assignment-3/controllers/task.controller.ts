@@ -1,13 +1,30 @@
 import { Request, Response } from "express";
+import redisClient from "../configs/redis";
 import { TaskAttributes } from "../types/task";
 import * as taskRepository from "../repository/task.repository";
 
 export const getStats = async (req: Request, res: Response) => {
     try {
+        const cacheKey = "task_stats";
+        const cachedStats = await redisClient.get(cacheKey);
+
+        if (cachedStats) {
+            console.log("CACHE HIT: Returning cached task stats");
+            return res.status(200).json(JSON.parse(cachedStats));
+        }
+
+        console.log("CACHE MISS: Fetching task stats from database");
+
         const tasks = await taskRepository.getAllTasks({}) as TaskAttributes[];
         const totalTasks = await taskRepository.getTaskCount();
         const totalCompletedTasks: number = tasks.filter(t => t.done === true).length;
         const totalIncompleteTasks: number = tasks.filter(t => t.done === false).length;
+
+        await redisClient.setEx(cacheKey, 60, JSON.stringify({
+            total: totalTasks,
+            done: totalCompletedTasks,
+            open: totalIncompleteTasks
+        }));
 
         res.status(200).json({
             total: totalTasks,
@@ -33,10 +50,21 @@ export const getAllTasks = async (req: Request, res: Response) => {
             else if (doneStr === "false" || doneStr === "0") isDone = false;
         }
 
+        const cacheKey = `tasks_${querySearch || "all"}_${isDone !== undefined ? isDone : "all"}`;
+        const cachedTasks = await redisClient.get(cacheKey);
+
+        if (cachedTasks) {
+            console.log("CACHE HIT: Returning cached tasks");
+            return res.status(200).json(JSON.parse(cachedTasks));
+        }
+
+        console.log("CACHE MISS: Fetching tasks from database");
         const tasks = await taskRepository.getAllTasks({
             search: querySearch?.trim(),
             done: isDone
         });
+
+        await redisClient.setEx(cacheKey, 60, JSON.stringify(tasks));
 
         res.status(200).json(tasks);
     } catch (error) {

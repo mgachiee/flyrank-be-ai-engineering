@@ -1,7 +1,7 @@
 import { Pool } from "pg";
 import { TaskAttributes } from "../types/task";
 
-const pool = new Pool({
+export const pool = new Pool({
     connectionString: String(process.env.DATABASE_URL),
 });
 

@@ -67,3 +67,21 @@ Keep-Alive: timeout=5
 
 ### Database Data (PostgreSQL)
 <img width="303" height="266" alt="Image" src="https://github.com/user-attachments/assets/f8c446a0-0ad6-4464-8cf6-568c164aff96" />
+
+
+## Extras
+
+### Mortality Experiment
+Docker containers are inherently ephemeral, meaning any database records created inside their internal file system are permanently destroyed the moment the container is removed. Volumes exist to bypass this limitation by mapping data directly to your host machine's hard drive, ensuring your database safely persists across container restarts and deletions.
+
+### Real Health Check
+The API features a comprehensive `GET /health` endpoint. Rather than returning a static response, it executes a `SELECT 1` query against the PostgreSQL database. This ensures the application only reports `{"db": "ok"}` if the database connection is fully operational.
+
+### Database Optimization
+Added a B-tree index (`idx_tasks_done`) on the `done` column of the `tasks` table. Verified the query execution plan using `EXPLAIN ANALYZE` to ensure the database can efficiently perform index scans when filtering by completion status, preparing the application to handle large datasets.
+
+### Caching Infrastructure Prepared
+Integrated a Redis service into the Docker Compose stack to prepare the infrastructure for future caching needs. The API successfully establishes a connection and executes a `PING` command upon startup to verify readiness.
+
+### Slim Docker Image
+Implemented a multi-stage Dockerfile to separate the TypeScript build environment from the Node.js runtime. This reduced the API image size from **425MB** to **290MB** by excluding source files and development dependencies.
