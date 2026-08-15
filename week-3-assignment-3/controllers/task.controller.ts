@@ -1,16 +1,16 @@
 import { Request, Response } from "express";
-import { TaskAttributes, TaskCreationAttributes } from "../types/task";
+import { TaskAttributes } from "../types/task";
 import * as taskRepository from "../repository/task.repository";
 
 export const getStats = async (req: Request, res: Response) => {
     try {
-        const totalTask = db.prepare("SELECT COUNT(*) as count FROM tasks").get() as { count: number };
-        const tasks = db.prepare("SELECT * FROM tasks").all() as TaskAttributes[];
-        const totalCompletedTasks: number = tasks.filter(t => t.done === 1).length;
-        const totalIncompleteTasks: number = tasks.filter(t => t.done === 0).length;
+        const tasks = await taskRepository.getAllTasks({}) as TaskAttributes[];
+        const totalTasks = await taskRepository.getTaskCount();
+        const totalCompletedTasks: number = tasks.filter(t => t.done === true).length;
+        const totalIncompleteTasks: number = tasks.filter(t => t.done === false).length;
 
         res.status(200).json({
-            total: totalTask.count,
+            total: totalTasks,
             done: totalCompletedTasks,
             open: totalIncompleteTasks
         });
@@ -73,17 +73,10 @@ export const createTask = async (req: Request, res: Response) => {
             return;
         }
 
-        // Fetch all tasks from the database
-        const tasks = db.prepare("SELECT * FROM tasks").all() as TaskAttributes[];
-
-        const newTask: TaskAttributes = {
-            id: tasks.length + 1,
-            title,
-            done: 0
-        };
-
-        // Insert the new task into the database
-        db.prepare("INSERT INTO tasks (title, done) VALUES (?, ?)").run(newTask.title, newTask.done);
+        const newTask: TaskAttributes = await taskRepository.createTask({
+            title: title.trim(),
+            done: false // Default to not done
+        });
         res.status(201).json(newTask);
     } catch (error) {
         console.error("Error creating task:", error);
@@ -94,30 +87,19 @@ export const createTask = async (req: Request, res: Response) => {
 export const updateTaskById = async (req: Request, res: Response) => {
     try {
         const taskId: number = parseInt(req.params.id as string, 10);
+        const { title, done } = req.body;
 
-        // Fetch the task from the database
-        const task = db.prepare("SELECT * FROM tasks WHERE id = ?")
-            .get(taskId) as TaskAttributes | undefined;
+        const updatedTask: TaskAttributes | null = await taskRepository.updateTaskById(taskId, {
+            title: title?.trim(),
+            done: done
+        });
 
-        if (!task) {
+        if (!updatedTask) {
             res.status(404).json({ error: `Task ${taskId} not found` });
             return;
         }
 
-        const { title, done } = req.body;
-
-        if (!title && done === undefined) {
-            res.status(400).json({ error: "At least one of title or done is required" });
-            return;
-        }
-
-        if (title !== undefined) task.title = title;
-        if (done !== undefined) task.done = done;
-
-        db.prepare("UPDATE tasks SET title = ?, done = ? WHERE id = ?")
-            .run(task.title, task.done, task.id);
-
-        res.status(200).json(task);
+        res.status(200).json(updatedTask);
     } catch (error) {
         console.error("Error updating task by ID:", error);
         res.status(500).json({ error: "Internal Server Error" });
@@ -128,15 +110,13 @@ export const deleteTaskById = async (req: Request, res: Response) => {
     try {
         const taskId: number = parseInt(req.params.id as string, 10);
 
-        // Fetch all tasks from the database
-        const tasks = db.prepare("SELECT * FROM tasks").all() as TaskAttributes[];
+        const deleted: boolean = await taskRepository.deleteTaskById(taskId);
 
-        if (!tasks.some(task => task.id === taskId)) {
+        if (!deleted) {
             res.status(404).json({ error: `Task ${taskId} not found` });
             return;
         }
 
-        db.prepare("DELETE FROM tasks WHERE id = ?").run(taskId);
         res.status(204).send();
     } catch (error) {
         console.error("Error deleting task by ID:", error);

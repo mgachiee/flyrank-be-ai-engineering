@@ -68,6 +68,16 @@ export const getAllTasks = async (filters: { search?: string | undefined; done?:
     }
 };
 
+export const getTaskCount = async (): Promise<number> => {
+    try {
+        const result = await pool.query("SELECT COUNT(*) as count FROM tasks");
+        return parseInt(result.rows[0].count, 10);
+    } catch (error) {
+        console.error("Database error fetching task count:", error);
+        throw error;
+    }
+};
+
 export const getTaskById = async (id: number): Promise<TaskAttributes | null> => {
     try {
         const result = await pool.query("SELECT * FROM tasks WHERE id = $1", [id]);
@@ -75,6 +85,56 @@ export const getTaskById = async (id: number): Promise<TaskAttributes | null> =>
         return result.rows[0] as TaskAttributes;
     } catch (error) {
         console.error(`Error fetching task with ID ${id}:`, error);
+        throw error;
+    }
+};
+
+export const createTask = async (task: Omit<TaskAttributes, "id">): Promise<TaskAttributes> => {
+    try {
+        const result = await pool.query(
+            "INSERT INTO tasks (title, done) VALUES ($1, $2) RETURNING *",
+            [task.title, task.done]
+        );
+        return result.rows[0] as TaskAttributes;
+    } catch (error) {
+        console.error("Error creating task:", error);
+        throw error;
+    }
+};
+
+export const updateTaskById = async (id: number, task: Partial<Omit<TaskAttributes, "id">>): Promise<TaskAttributes | null> => {
+    try {
+        const existingTask = await getTaskById(id);
+        if (!existingTask) return null;
+
+        const updatedTask = {
+            ...existingTask,
+            ...task
+        };
+
+        const result = await pool.query(
+            "UPDATE tasks SET title = $1, done = $2 WHERE id = $3 RETURNING *",
+            [updatedTask.title, updatedTask.done, id]
+        );
+        return result.rows[0] as TaskAttributes;
+    } catch (error) {
+        console.error(`Error updating task with ID ${id}:`, error);
+        throw error;
+    }
+};
+
+export const deleteTaskById = async (id: number): Promise<boolean> => {
+    try {
+        const result = await pool.query("DELETE FROM tasks WHERE id = $1", [id]);
+
+        if (result.rowCount === 0) {
+            console.warn(`Task with ID ${id} not found for deletion.`);
+            return false;
+        }
+        
+        return true;
+    } catch (error) {
+        console.error(`Error deleting task with ID ${id}:`, error);
         throw error;
     }
 };
