@@ -2,7 +2,7 @@
 
 ## What this is
 
-This is a Task Management API built using Node.js, Express, TypeScript, and SQLite (via `better-sqlite3`). It allows users to perform CRUD (Create, Read, Update, Delete) operations on a list of tasks with persistent database storage.
+This is a Task Management API built using Node.js, Express, TypeScript, and PostgreSQL. It allows users to perform CRUD (Create, Read, Update, Delete) operations on a list of tasks with persistent database storage.
 
 ## Why SQLite Was Chosen
 
@@ -15,17 +15,24 @@ SQLite was chosen as the database solution for this project because:
 
 - **Database File Location**: `./data/tasks.db`
 - **Automatic Setup**: The application automatically checks for `./data` and `./data/tasks.db` on boot. If missing, it creates the folder, creates the `tasks` table schema, and seeds the default records with zero manual setup required.
-- **Version Control (`.gitignore`)**: The `./data/tasks.db` file is listed in `.gitignore` so each repository clone starts fresh with automated setup and seeding.
+- **Version Control (`.gitignore`)**: Essential files such as `.env` and `node_modules/` are listed in `.gitignore` so secrets and local dependencies are kept out of version control.
 
 ## How to Install & Run
 
-You can install the dependencies and start the development server using the following single command:
+First, start the Postgres database using Docker:
+
+```bash
+docker run --name taskdb -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=tasks \
+  -p 5432:5432 -v taskdata:/var/lib/postgresql/data -d postgres:17
+```
+
+Then, you can install the dependencies and start the development server using the following single command:
 
 ```bash
 npm install && npm run dev
 ```
 
-Running this command will start the server at `http://localhost:3000`, automatically initializing the database and seeding the 3 initial tasks.
+Running this command will start the server at `http://localhost:3000`.
 
 ## Endpoints
 
