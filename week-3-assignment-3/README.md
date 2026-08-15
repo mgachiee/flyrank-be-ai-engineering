@@ -4,35 +4,28 @@
 
 This is a Task Management API built using Node.js, Express, TypeScript, and PostgreSQL. It allows users to perform CRUD (Create, Read, Update, Delete) operations on a list of tasks with persistent database storage.
 
-## Why SQLite Was Chosen
+## Environment Variables
 
-SQLite was chosen as the database solution for this project because:
-- **Single File Storage**: The entire database lives in a lightweight local file (`tasks.db`), avoiding the complexity and overhead of managing a separate database server.
-- **Zero Setup**: No installation of external database services or user authentication configuration is required.
-- **Survives Restarts**: Data persists on disk across application and server restarts, solving the "Mortality Experiment" issue present in in-memory implementations.
+Before running the application, you need to configure the environment variables.
 
-## Database Location & Automatic Creation
-
-- **Database File Location**: `./data/tasks.db`
-- **Automatic Setup**: The application automatically checks for `./data` and `./data/tasks.db` on boot. If missing, it creates the folder, creates the `tasks` table schema, and seeds the default records with zero manual setup required.
-- **Version Control (`.gitignore`)**: Essential files such as `.env` and `node_modules/` are listed in `.gitignore` so secrets and local dependencies are kept out of version control.
+1. Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+2. The `.env.example` file contains the required variables to configure the PostgreSQL database and connection string:
+   - `POSTGRES_PASSWORD`
+   - `POSTGRES_DB`
+   - `DATABASE_URL`
 
 ## How to Install & Run
 
-First, start the Postgres database using Docker:
+Start the entire stack (API and Database) using Docker Compose with one command:
 
 ```bash
-docker run --name taskdb -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=tasks \
-  -p 5432:5432 -v taskdata:/var/lib/postgresql/data -d postgres:17
+docker compose up
 ```
 
-Then, you can install the dependencies and start the development server using the following single command:
-
-```bash
-npm install && npm run dev
-```
-
-Running this command will start the server at `http://localhost:3000`.
+Running this command will start the server at `http://localhost:3000` with the PostgreSQL database fully configured and seeded.
 
 ## Endpoints
 
@@ -67,27 +60,10 @@ Keep-Alive: timeout=5
 [{"id":1,"title":"Task 1: Read documentation","done":0},{"id":2,"title":"Task 2: Implement feature","done":1},{"id":3,"title":"Task 3: Write tests","done":0}]
 ```
 
-## Stage 4: Example SQL Query
-
-Below is an example SQL query executed in Stage 4 using DB Browser for SQLite to verify database state and operations:
-
-```sql
-SELECT id, title, done FROM tasks;
-```
-
-**Query Result Output:**
-
-| id | title | done |
-|---|---|---|
-| 1 | Task 1: Read documentation | 0 |
-| 2 | Task 2: Implement feature | 1 |
-| 3 | Task 3: Write tests | 0 |
-
 ## Screenshots
 
 ### Swagger API Documentation
 <img width="2560" height="1600" alt="Swagger API Documentation" src="https://github.com/user-attachments/assets/47f6ac6d-e553-4243-b557-682a2a44814b" />
 
-### DB Browser for SQLite
-<img width="1280" height="764" alt="DB Browser" src="https://github.com/user-attachments/assets/078e1385-ee9e-464a-8086-ec3373fca734" />
-
+### Database Data (PostgreSQL)
+<img width="303" height="266" alt="Image" src="https://github.com/user-attachments/assets/f8c446a0-0ad6-4464-8cf6-568c164aff96" />
