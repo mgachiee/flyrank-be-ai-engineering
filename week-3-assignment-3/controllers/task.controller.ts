@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import { TaskAttributes, TaskCreationAttributes } from "../types/task";
+import * as taskRepository from "../repository/task.repository";
 
-export const getStats = (req: Request, res: Response) => {
+export const getStats = async (req: Request, res: Response) => {
     try {
         const totalTask = db.prepare("SELECT COUNT(*) as count FROM tasks").get() as { count: number };
         const tasks = db.prepare("SELECT * FROM tasks").all() as TaskAttributes[];
@@ -19,36 +20,24 @@ export const getStats = (req: Request, res: Response) => {
     }
 };
 
-export const getAllTasks = (req: Request, res: Response) => {
+export const getAllTasks = async (req: Request, res: Response) => {
     try {
-        const queryDone = req.query.done as string | undefined;
+        // Query parameters for filtering
         const querySearch = req.query.search as string | undefined;
+        let isDone: boolean | undefined = undefined;
 
-        let sql = "SELECT * FROM tasks";
-        const conditions: string[] = [];
-        const params: (string | number)[] = [];
-
-        // Filter by title search term (case-insensitive using SQL LOWER)
-        if (querySearch !== undefined && querySearch.trim().length > 0) {
-            conditions.push("LOWER(title) LIKE LOWER(?)");
-            params.push(`%${querySearch.trim()}%`);
+        // Parse the 'done' string into a native boolean
+        if (typeof req.query.done === 'string') {
+            const doneStr = req.query.done.trim().toLowerCase();
+            if (doneStr === "true" || doneStr === "1") isDone = true;
+            else if (doneStr === "false" || doneStr === "0") isDone = false;
         }
 
-        // Filter by completion status (convert true/false/1/0 to numerical 1/0 for SQLite)
-        if (queryDone !== undefined && queryDone.trim().length > 0) {
-            const doneStr = queryDone.trim().toLowerCase();
-            if (doneStr === "true" || doneStr === "1") {
-            conditions.push("done = 1");
-            } else if (doneStr === "false" || doneStr === "0") {
-            conditions.push("done = 0");
-            }
-        }
+        const tasks = await taskRepository.getAllTasks({
+            search: querySearch?.trim(),
+            done: isDone
+        });
 
-        if (conditions.length > 0) {
-            sql += " WHERE " + conditions.join(" AND ");
-        }
-
-        const tasks = db.prepare(sql + " ORDER BY title").all(...params) as TaskAttributes[];
         res.status(200).json(tasks);
     } catch (error) {
         console.error("Error fetching tasks:", error);
@@ -56,13 +45,12 @@ export const getAllTasks = (req: Request, res: Response) => {
     }
 };
 
-export const getTaskById = (req: Request, res: Response) => {
+export const getTaskById = async (req: Request, res: Response) => {
     try {
         const taskId: number = parseInt(req.params.id as string, 10);
 
         // Fetch the task from the database
-        const task = db.prepare("SELECT * FROM tasks WHERE id = ?")
-            .get(taskId) as TaskAttributes | undefined;
+        const task = await taskRepository.getTaskById(taskId);
 
         if (!task) {
             res.status(404).json({ error: `Task ${taskId} not found` });
@@ -76,7 +64,7 @@ export const getTaskById = (req: Request, res: Response) => {
     }
 }
 
-export const createTask = (req: Request, res: Response) => {
+export const createTask = async (req: Request, res: Response) => {
     try {
         const { title } = req.body;
 
@@ -103,7 +91,7 @@ export const createTask = (req: Request, res: Response) => {
     }
 }
 
-export const updateTaskById = (req: Request, res: Response) => {
+export const updateTaskById = async (req: Request, res: Response) => {
     try {
         const taskId: number = parseInt(req.params.id as string, 10);
 
@@ -136,7 +124,7 @@ export const updateTaskById = (req: Request, res: Response) => {
     }
 }
 
-export const deleteTaskById = (req: Request, res: Response) => {
+export const deleteTaskById = async (req: Request, res: Response) => {
     try {
         const taskId: number = parseInt(req.params.id as string, 10);
 

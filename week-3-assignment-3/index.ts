@@ -24,7 +24,7 @@ app.get("/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.use("/tasks", taskRoutes);
+app.use("/", taskRoutes);
 
 // app.post("/reset", (_req: Request, res: Response) => {
 //   tasks.splice(2, tasks.length - 3);
