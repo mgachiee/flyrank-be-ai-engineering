@@ -1,0 +1,16 @@
+openapi: 3.0.4
+info:
+  title: Auth - Login & Protect
+  version: 1.0.0
+  description: A simple API for authentication
+
+servers:
+- url: http://localhost:3000
+  description: Local server
+
+tags:
+- name: Auth
+  description: Authentication operations
+
+paths:
+    # add API endpoints here
