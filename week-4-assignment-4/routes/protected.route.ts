@@ -1,8 +1,10 @@
 import { Router } from "express";
-import { profile } from "../controllers/protected.controller";
+import { authenticateToken } from "../middlewares/auth.middleware";
+import { profile, dashboard } from "../controllers/protected.controller";
 
 const router = Router();
 
-router.get("/profile", profile);
+router.get("/profile", authenticateToken, profile);
+router.get("/dashboard", authenticateToken, dashboard);
 
 export default router;
