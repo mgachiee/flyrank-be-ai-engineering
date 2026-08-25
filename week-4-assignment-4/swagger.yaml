@@ -11,6 +11,261 @@ servers:
 tags:
 - name: Auth
   description: Authentication operations
+- name: Protected
+  description: Protected routes requiring authentication
+- name: Public
+  description: Publicly accessible routes
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 
 paths:
-    # add API endpoints here
+    /public/info:
+        get:
+            summary: Get public information
+            tags:
+                - Public
+            description: Retrieve public info without authentication
+            responses:
+                "200":
+                    description: Public info retrieved successfully
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    message:
+                                        type: string
+                                        example: "Welcome stranger! This info is public."
+    /auth/signup:
+        post:
+            summary: Register a new user
+            tags:
+                - Auth
+            description: Create a new user account with email and password
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                email:
+                                    type: string
+                                    format: email
+                                    example: "user@example.com"
+                                password:
+                                    type: string
+                                    format: password
+                                    example: "securepassword123"
+                            required:
+                                - email
+                                - password
+            responses:
+                "201":
+                    description: User created successfully
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    message:
+                                        type: string
+                                        example: "User created successfully"
+                "400":
+                    description: Bad Request (missing email/password)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: "Email and password are required"
+                "500":
+                    description: Internal server error
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: "Internal server error"
+    /auth/login:
+        post:
+            summary: Log in a user
+            tags:
+                - Auth
+            description: Authenticate a user and receive an access token
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                email:
+                                    type: string
+                                    format: email
+                                    example: "user@example.com"
+                                password:
+                                    type: string
+                                    format: password
+                                    example: "securepassword123"
+                            required:
+                                - email
+                                - password
+            responses:
+                "200":
+                    description: User logged in successfully
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    message:
+                                        type: string
+                                        example: "User logged in successfully"
+                                    token:
+                                        type: object
+                                        properties:
+                                            accessToken:
+                                                type: string
+                                                example: "eyJhbGciOiJIUzI1NiIsInR..."
+                                            refreshToken:
+                                                type: string
+                                                example: "rEfR3shT0k3n..."
+                "400":
+                    description: Bad Request (missing email/password)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: "Email and password are required"
+                "401":
+                    description: Unauthorized (invalid credentials)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: "Invalid login credentials"
+                "500":
+                    description: Internal server error
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: "Internal server error"
+    /auth/logout:
+        post:
+            summary: Log out a user
+            tags:
+                - Auth
+            description: Sign out the currently authenticated user
+            security:
+                - bearerAuth: []
+            responses:
+                "204":
+                    description: User logged out successfully
+                "500":
+                    description: Internal server error
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: "Internal server error"
+    /protected/profile:
+        get:
+            summary: Get user profile
+            tags:
+                - Protected
+            description: Retrieve the authenticated user's profile information
+            security:
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: User profile retrieved successfully
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    profile:
+                                        type: object
+                                        description: User profile data
+                "401":
+                    description: Unauthorized (missing or invalid token)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: "Unauthorized"
+                "500":
+                    description: Internal server error
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: "Internal server error"
+    /protected/dashboard:
+        get:
+            summary: Get protected dashboard
+            tags:
+                - Protected
+            description: Access the protected dashboard
+            security:
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: Dashboard data retrieved successfully
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    message:
+                                        type: string
+                                        example: "Welcome to the dashboard! This is a protected route."
+                "401":
+                    description: Unauthorized (missing or invalid token)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: "Unauthorized"
+                "500":
+                    description: Internal server error
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: "Internal server error"
