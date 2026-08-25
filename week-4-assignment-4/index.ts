@@ -1,9 +1,10 @@
 import "dotenv/config";
-import express, { Express } from "express";
+import express, { Express, Request, Response } from "express";
 import swaggerUI from "swagger-ui-express";
 import fs from "fs";
 import YAML from "yaml";
 import authRoutes from "./routes/auth.route";
+import protectedRoutes from "./routes/protected.route";
 
 const swaggerYaml = fs.readFileSync("./swagger.yaml", "utf-8");
 const swaggerDocument = YAML.parse(swaggerYaml);
@@ -17,6 +18,11 @@ app.use("/docs", swaggerUI.serve, swaggerUI.setup(swaggerDocument));
 
 // Routes
 app.use("/auth", authRoutes);
+app.use("/protected", protectedRoutes);
+
+app.get("/public/info", (_req: Request, res: Response) => {
+  res.status(200).json({ message: "Welcome stranger! This info is public." });
+});
 
 const startServer = async () => {
   try {
