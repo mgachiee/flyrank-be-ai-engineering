@@ -3,6 +3,7 @@ import express, { Express } from "express";
 import swaggerUI from "swagger-ui-express";
 import fs from "fs";
 import YAML from "yaml";
+import authRoutes from "./routes/auth.route";
 
 const swaggerYaml = fs.readFileSync("./swagger.yaml", "utf-8");
 const swaggerDocument = YAML.parse(swaggerYaml);
@@ -13,6 +14,9 @@ const port: number = 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/docs", swaggerUI.serve, swaggerUI.setup(swaggerDocument));
+
+// Routes
+app.use("/auth", authRoutes);
 
 const startServer = async () => {
   try {
