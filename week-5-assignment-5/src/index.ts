@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { z } from "zod";
 import fs from "fs";
 
 const url = "https://books.toscrape.com";
@@ -13,12 +14,26 @@ interface Book {
     title: string;
     productUrl: string;
     priceText: string;
+    priceGbp?: number | null | undefined;
     availabilityText: string;
     ratingText: string;
-    description?: string | null;
+    description?: string | null | undefined;
     sourcePage: string;
     fetchedAt: Date;
 };
+
+// Define a Zod schema for validation
+const bookSchema = z.object({
+    title: z.string(),
+    productUrl: z.url(),
+    priceText: z.string(),
+    priceGbp: z.number().nullable().optional(),
+    availabilityText: z.string(),
+    ratingText: z.string(),
+    description: z.string().nullable().optional(),
+    sourcePage: z.url(),
+    fetchedAt: z.date(),
+});
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -69,13 +84,24 @@ const getHtmlPage = async (targetUrl: string): Promise<string> => {
     }
 };
 
+const getNumericPrice = (priceText: string): number | null => {
+    const match = priceText.match(/[\d,.]+/);
+
+    if (match) {
+        const numericString = match[0].replace(/,/g, ""); // Remove commas for thousands
+        return parseFloat(numericString);
+    }
+
+    return null;
+};
+
 const getBookDetails = async (productUrl: string): Promise<Omit<Book, "sourcePage" & Partial<Pick<Book, "sourcePage">>>> => {
     try {
         const html = await getHtmlPage(productUrl);
         const $ = cheerio.load(html);
 
         const title = $(".product_main h1").text().trim();
-        const price = $(".product_main .price_color").first().text().trim();
+        const priceText = $(".product_main .price_color").first().text().trim();
         const availability = $(".product_main .availability").first().text().trim();
         const rating = $(".product_main .star-rating").first().attr("class")?.replace("star-rating", "").trim() || "Not rated";
         const description = $("#product_description").next("p").text().trim() || null;
@@ -84,7 +110,8 @@ const getBookDetails = async (productUrl: string): Promise<Omit<Book, "sourcePag
         return {
             title,
             productUrl,
-            priceText: price,
+            priceText,
+            priceGbp: getNumericPrice(priceText),
             availabilityText: availability,
             ratingText: rating,
             description,
@@ -101,6 +128,8 @@ const getUniqueUrlsFromPages = async (startUrl: string, maxPages: number = 3): P
     let pagesCount = 0;
     const discoveredUrls: string[] = [];
     const books: Book[] = [];
+    const seenUrls = new Set<string>();
+    const errorUrls: Record<string, string> = {}; // To store URLs that failed to fetch and their error messages
 
     while (currentUrl && pagesCount < maxPages) {
         try {
@@ -119,10 +148,28 @@ const getUniqueUrlsFromPages = async (startUrl: string, maxPages: number = 3): P
 
                         // Fetch book details
                         const bookDetails = await getBookDetails(absoluteUrl);
-                        books.push({
-                            ...bookDetails,
-                            sourcePage: currentUrl!,
-                        });
+                        
+                        // Only add the book if it hasn't been seen before
+                        if (!seenUrls.has(absoluteUrl)) {
+                            seenUrls.add(absoluteUrl);
+
+                            try {
+                                const parsedBook = bookSchema.parse({
+                                    ...bookDetails,
+                                    sourcePage: currentUrl!,
+                                });
+
+                                books.push(parsedBook);
+                            } catch (validationError) {
+                                if (validationError instanceof z.ZodError) {
+                                    errorUrls[absoluteUrl] = validationError.issues
+                                        .map(issue => issue.message)
+                                        .join(", ");
+                                } else {
+                                    errorUrls[absoluteUrl] = (validationError as Error).message;
+                                }
+                            }
+                        }
                     }
                 })
             );
@@ -142,6 +189,11 @@ const getUniqueUrlsFromPages = async (startUrl: string, maxPages: number = 3): P
     const uniqueUrls = Array.from(new Set(discoveredUrls));
 
     console.log(`catalogue_pages=${pagesCount}, discovered=${discoveredUrls.length}, unique_urls=${uniqueUrls.length}`);
+
+    // Save books and error URLs to JSON files for further inspection
+    if (!fs.existsSync("output")) fs.mkdirSync("output", { recursive: true });
+    fs.writeFileSync("output/books.json", JSON.stringify(books, null, 2), "utf-8");
+    fs.writeFileSync("output/errors.json", JSON.stringify(errorUrls, null, 2), "utf-8");
 
     return books;
 };
