@@ -8,6 +8,18 @@ const timeout = 5000; // 5 seconds
 const delay = 600; // > 500ms delay between network requests
 const cacheDir = "cache";
 
+// Define the Book structure
+interface Book {
+    title: string;
+    productUrl: string;
+    priceText: string;
+    availabilityText: string;
+    ratingText: string;
+    description?: string | null;
+    sourcePage: string;
+    fetchedAt: Date;
+};
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const createCatalogueCacheKey = (targetUrl: string): string => {
@@ -57,10 +69,38 @@ const getHtmlPage = async (targetUrl: string): Promise<string> => {
     }
 };
 
-const main = async (startUrl: string, maxPages: number = 3) => {
+const getBookDetails = async (productUrl: string): Promise<Omit<Book, "sourcePage" & Partial<Pick<Book, "sourcePage">>>> => {
+    try {
+        const html = await getHtmlPage(productUrl);
+        const $ = cheerio.load(html);
+
+        const title = $(".product_main h1").text().trim();
+        const price = $(".product_main .price_color").first().text().trim();
+        const availability = $(".product_main .availability").first().text().trim();
+        const rating = $(".product_main .star-rating").first().attr("class")?.replace("star-rating", "").trim() || "Not rated";
+        const description = $("#product_description").next("p").text().trim() || null;
+        const fetchedAt = new Date();
+
+        return {
+            title,
+            productUrl,
+            priceText: price,
+            availabilityText: availability,
+            ratingText: rating,
+            description,
+            fetchedAt,
+        }
+    } catch (error) {
+        console.error(`Error fetching books from page ${productUrl}:`, error);
+        throw error;
+    }
+};
+
+const getUniqueUrlsFromPages = async (startUrl: string, maxPages: number = 3): Promise<Book[]> => {
     let currentUrl: string | null = startUrl;
     let pagesCount = 0;
     const discoveredUrls: string[] = [];
+    const books: Book[] = [];
 
     while (currentUrl && pagesCount < maxPages) {
         try {
@@ -68,14 +108,24 @@ const main = async (startUrl: string, maxPages: number = 3) => {
             const $ = cheerio.load(html);
             pagesCount++;
 
-            // Extract book links on the current page
-            $(".product_pod h3 a").each((_i, el) => {
-                const relativeHref = $(el).attr("href");
-                if (relativeHref) {
-                    const absoluteUrl = new URL(relativeHref, currentUrl!).href;
-                    discoveredUrls.push(absoluteUrl);
-                }
-            });
+            const elements = $(".product_pod h3 a").toArray();
+
+            await Promise.all(
+                elements.map(async (el) => {
+                    const relativeHref = $(el).attr("href");
+                    if (relativeHref) {
+                        const absoluteUrl = new URL(relativeHref, currentUrl!).href;
+                        discoveredUrls.push(absoluteUrl);
+
+                        // Fetch book details
+                        const bookDetails = await getBookDetails(absoluteUrl);
+                        books.push({
+                            ...bookDetails,
+                            sourcePage: currentUrl!,
+                        });
+                    }
+                })
+            );
 
             const nextHref = $("li.next a").attr("href");
             if (nextHref) {
@@ -90,7 +140,16 @@ const main = async (startUrl: string, maxPages: number = 3) => {
     }
 
     const uniqueUrls = Array.from(new Set(discoveredUrls));
+
     console.log(`catalogue_pages=${pagesCount}, discovered=${discoveredUrls.length}, unique_urls=${uniqueUrls.length}`);
+
+    return books;
+};
+
+const main = async (startUrl: string, maxPages: number = 3) => {
+    const books = await getUniqueUrlsFromPages(startUrl, maxPages);
+    console.log("Sample book details:", books[0]);
+    console.log(`detail_pages=${books.length}`);
 };
 
 (async () => {
